@@ -1,0 +1,297 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Bot, Send } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
+const TypingIndicator = () => (
+  <div className="flex space-x-2 p-3 bg-gray-100 rounded-lg max-w-[80%]">
+    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100" />
+    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200" />
+  </div>
+);
+
+const JerrySearchBot = () => {
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('general');
+  const [context, setContext] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [savedSearches, setSavedSearches] = useState([]);
+  const [messages, setMessages] = useState([
+    {
+      type: 'bot',
+      content: "Hello! I'm Jerry, your advanced AI search assistant! I can help you with various categories of searches and maintain context of our conversation. How can I assist you today? 🤖✨",
+      timestamp: new Date().toISOString()
+    }
+  ]);
+
+  const chatRef = useRef(null);
+  
+  const categories = {
+    general: { label: '🔍', color: 'blue' },
+    academic: { label: '📚', color: 'green' },
+    technical: { label: '⚙️', color: 'purple' },
+    creative: { label: '🎨', color: 'yellow' }
+  };
+
+  useEffect(() => {
+    if (chatRef.current) {
+      chatRef.current.scrollTop = chatRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const analyzeQuery = (query) => {
+    const keywords = {
+      technical: ['code', 'programming', 'software', 'tech'],
+      academic: ['research', 'study', 'paper', 'theory'],
+      creative: ['design', 'art', 'create', 'imagine']
+    };
+
+    for (const [category, words] of Object.entries(keywords)) {
+      if (words.some(word => query.toLowerCase().includes(word))) {
+        return category;
+      }
+    }
+    return 'general';
+  };
+
+  const generateStructuredResponse = (query, category) => {
+    setContext(prev => [...prev, query]);
+    
+    const responses = {
+      technical: {
+        prefix: "🔧 Technical Analysis: ",
+        suggestions: [
+          "Would you like to see code examples?",
+          "Should I explain the technical architecture?",
+          "Would you like documentation references?"
+        ]
+      },
+      academic: {
+        prefix: "📚 Academic Insight: ",
+        suggestions: [
+          "Would you like related research papers?",
+          "Shall I explain the theoretical framework?",
+          "Would you like a detailed literature review?"
+        ]
+      },
+      creative: {
+        prefix: "🎨 Creative Perspective: ",
+        suggestions: [
+          "Would you like to explore different styles?",
+          "Shall we brainstorm more ideas?",
+          "Would you like to see visual references?"
+        ]
+      },
+      general: {
+        prefix: "🔍 Search Results: ",
+        suggestions: [
+          "Would you like more specific information?",
+          "Shall we narrow down the search?",
+          "Would you like related topics?"
+        ]
+      }
+    };
+
+    const response = responses[category];
+    const contextAwareness = context.length > 1 ? 
+      `\n\nBased on our previous discussion about ${context[context.length - 2]}, ` : 
+      "\n\n";
+
+    return `${response.prefix}I'm analyzing your query about "${query}"${contextAwareness}
+    
+Here's what I found:
+1. Primary results related to your search
+2. Related topics you might be interested in
+3. Suggested next steps
+
+${response.suggestions.join('\n')}`;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    const userMessage = {
+      type: 'user',
+      content: input,
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setIsTyping(true);
+
+    // Detect category from input
+    const detectedCategory = analyzeQuery(input);
+    if (detectedCategory !== selectedCategory) {
+      setSelectedCategory(detectedCategory);
+    }
+
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    const botResponse = {
+      type: 'bot',
+      content: generateStructuredResponse(input, detectedCategory),
+      timestamp: new Date().toISOString(),
+      category: detectedCategory
+    };
+
+    setIsTyping(false);
+    setMessages(prev => [...prev, botResponse]);
+    setInput('');
+  };
+
+  const saveSearch = (message) => {
+    setSavedSearches(prev => [...prev, message]);
+  };
+
+  return (
+    <div className="w-full max-w-4xl mx-auto">
+      <Card className="shadow-xl">
+        <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-lg">
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bot className="w-6 h-6" />
+              Jerry - Advanced AI Search Assistant
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className="p-2 hover:bg-white/20 rounded-full transition-colors"
+              >
+                {/* Using emoji instead of History icon */}
+                <span className="text-xl">📜</span>
+              </button>
+            </div>
+          </CardTitle>
+        </CardHeader>
+
+        <div className="flex">
+          {/* Categories Sidebar */}
+          <div className="w-48 p-4 border-r">
+            <h3 className="font-semibold mb-3 flex items-center gap-2">
+              <span>📑</span> Categories
+            </h3>
+            {Object.entries(categories).map(([cat, { label, color }]) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`w-full text-left mb-2 p-2 rounded flex items-center gap-2 transition-colors ${
+                  selectedCategory === cat ? `bg-${color}-100 text-${color}-700` : 'hover:bg-gray-100'
+                }`}
+              >
+                <span className="text-xl">{label}</span>
+                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {/* Main Chat Area */}
+          <div className="flex-1">
+            <CardContent 
+              ref={chatRef}
+              className="h-96 overflow-y-auto p-4 space-y-4"
+            >
+              {messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className="group relative max-w-[80%]">
+                    <div
+                      className={`rounded-lg p-3 ${
+                        message.type === 'user'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {message.content}
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(message.timestamp).toLocaleTimeString()}
+                      </div>
+                    </div>
+                    {message.type === 'user' && (
+                      <button
+                        onClick={() => saveSearch(message)}
+                        className="absolute -right-8 top-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <span className="text-gray-500 hover:text-blue-500">💾</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <TypingIndicator />
+                </div>
+              )}
+            </CardContent>
+
+            <CardFooter className="border-t p-4">
+              <form onSubmit={handleSubmit} className="flex w-full gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={`Ask me anything about ${selectedCategory}...`}
+                    className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isTyping}
+                  className="bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400"
+                >
+                  {isTyping ? (
+                    <div className="w-5 h-5 animate-spin">⌛</div>
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
+                </button>
+              </form>
+            </CardFooter>
+          </div>
+
+          {/* History Sidebar */}
+          {showHistory && (
+            <div className="w-64 p-4 border-l">
+              <h3 className="font-semibold mb-3 flex items-center justify-between">
+                <span>Saved Searches</span>
+                <button
+                  onClick={() => setShowHistory(false)}
+                  className="hover:bg-gray-100 rounded-full p-1"
+                >
+                  <span>❌</span>
+                </button>
+              </h3>
+              {savedSearches.map((search, index) => (
+                <div
+                  key={index}
+                  className="text-sm p-2 mb-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer"
+                >
+                  {search.content}
+                  <div className="text-xs text-gray-500 mt-1">
+                    {new Date(search.timestamp).toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Alert className="mt-4">
+        <AlertDescription>
+          Jerry is currently in {selectedCategory} mode. Queries will be optimized for {selectedCategory} searches.
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
+};
+
+export default JerrySearchBot;
